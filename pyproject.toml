@@ -1,0 +1,48 @@
+[project]
+name = "atlaslift-telemetry-lakehouse"
+version = "0.1.0"
+description = "Enterprise-grade Azure Databricks Medallion Pipeline for Industrial Telemetry Analytics"
+authors = [
+    { name = "Lead Cloud Data Architect", email = "nahasat.nibir@gmail.com" }
+]
+# Enforcing exact Python version for Databricks Runtime 14.3 LTS compatibility
+requires-python = "==3.11.9"
+
+# Explicitly pinning compatible versions of our core stack
+dependencies = [
+    "pyspark==3.5.1",
+    "delta-spark==3.1.0",
+    "pandera[pyspark]==0.20.4",
+    "python-dotenv==1.0.1"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.1.1",
+    "pytest-cov==5.0.0",
+    "black==24.3.0",
+    "isort==5.13.2",
+    "flake8==7.0.0"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-v --cov=src --disable-warnings"
+testpaths = [
+    "tests",
+]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]

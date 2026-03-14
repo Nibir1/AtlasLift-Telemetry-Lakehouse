@@ -1,0 +1,70 @@
+# ==========================================
+# 1. Python & Virtual Environments (uv)
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+# Note: Do NOT ignore uv.lock or pyproject.toml
+
+# ==========================================
+# 2. Local PySpark & Delta Lake Data
+# ==========================================
+# Ignores local data folders to prevent committing large simulated datasets
+data/raw/
+data/bronze/
+data/silver/
+data/gold/
+
+# Spark local warehouse and metadata
+spark-warehouse/
+metastore_db/
+derby.log
+*.crc
+
+# Delta Lake transaction logs
+_delta_log/
+*.snappy.parquet
+*.parquet
+
+# ==========================================
+# 3. Databricks Asset Bundles (DABs)
+# ==========================================
+# Ignores local bundle cache and deployment artifacts
+.databricks/
+bundle_out/
+
+# ==========================================
+# 4. Environment Variables & Secrets
+# ==========================================
+# NEVER commit your actual .env file containing Azure/Databricks tokens
+.env
+.env.local
+.env.*
+# Note: Keep .env.example tracked!
+!.env.example
+
+# ==========================================
+# 5. Testing & Coverage (pytest)
+# ==========================================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# ==========================================
+# 6. IDEs & OS Files
+# ==========================================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# 7. Power BI (Optional Safety)
+# ==========================================
+# In case you decide to save the actual desktop file locally
+*.pbix
+*.pbit
