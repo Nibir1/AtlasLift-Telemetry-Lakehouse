@@ -1,0 +1,46 @@
+# Purpose: Infrastructure as Code (IaC) defining the Databricks environment and jobs.
+# Author: Nahasat Nibir
+# Date: 2026-03-14
+
+bundle:
+  name: atlaslift-telemetry-lakehouse
+
+workspace:
+  root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+
+resources:
+  jobs:
+    atlaslift_medallion_pipeline:
+      name: "AtlasLift Telemetry Pipeline Orchestrator"
+      description: "End-to-end Medallion pipeline processing Konecranes IoT telemetry."
+      
+      tasks:
+        - task_key: "run_medallion"
+          spark_python_task:
+            python_file: "src/main.py"
+          job_cluster_key: "finops_optimized_cluster"
+          
+      job_clusters:
+        - job_cluster_key: "finops_optimized_cluster"
+          new_cluster:
+            spark_version: "14.3.x-scala2.12"
+            node_type_id: "Standard_DS3_v2"
+            num_workers: 0 
+            spark_conf:
+              "spark.databricks.cluster.profile": "singleNode"
+              "spark.master": "local[*]"
+            autotermination_minutes: 15
+            custom_tags:
+              Project: "AtlasLift-Telemetry"
+              Environment: "${bundle.target}"
+              CostCenter: "AnalyticsEngineering-Trainee"
+              ResourceClass: "SingleNode"
+
+targets:
+  dev:
+    default: true
+    # host is automatically resolved via the DATABRICKS_HOST environment variable
+
+  prod:
+    workspace:
+      root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}

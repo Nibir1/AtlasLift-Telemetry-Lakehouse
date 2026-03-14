@@ -1,0 +1,61 @@
+# Purpose: Automated testing and deployment pipeline for Databricks.
+# Author: Nahasat Nibir
+# Date: 2026-03-14
+
+name: AtlasLift CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test-pipeline:
+    name: Run PySpark Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install uv package manager
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Set up Python 3.11.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11.9"
+
+      - name: Install Dependencies via uv
+        run: |
+          uv sync --extra dev
+          
+      - name: Execute PySpark Local Test Harness
+        run: |
+          uv run pytest tests/ -v --setup-show
+
+  deploy-bundle:
+    name: Deploy to Azure Databricks
+    needs: test-pipeline
+    runs-on: ubuntu-latest
+    # Only deploy to Azure Databricks on pushes to the main branch
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Deploy Databricks Asset Bundle (Production Target)
+        run: |
+          databricks bundle deploy -t prod
