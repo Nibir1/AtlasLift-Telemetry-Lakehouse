@@ -24,7 +24,8 @@ resources:
         - job_cluster_key: "finops_optimized_cluster"
           new_cluster:
             spark_version: "14.3.x-scala2.12"
-            node_type_id: "Standard_DS3_v2"
+            # CHANGED: Pivoting to D4s_v3 due to Sweden Central capacity constraints
+            node_type_id: "Standard_D4s_v3" 
             num_workers: 0 
             spark_conf:
               "spark.databricks.cluster.profile": "singleNode"
@@ -39,8 +40,11 @@ resources:
 targets:
   dev:
     default: true
-    # host is automatically resolved via the DATABRICKS_HOST environment variable
 
   prod:
     workspace:
       root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
+    # ADDED: Explicit RBAC permissions to silence the shared workspace warning
+    permissions:
+      - level: CAN_MANAGE
+        group_name: users
