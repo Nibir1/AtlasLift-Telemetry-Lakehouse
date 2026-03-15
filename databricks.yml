@@ -20,11 +20,12 @@ resources:
             python_file: "src/main.py"
           job_cluster_key: "finops_optimized_cluster"
           # ADDED: Instructs the cluster to pip install our dependencies before running
+          # Instructs the cluster to pip install our dependencies before running
           libraries:
             - pypi:
                 package: "python-dotenv==1.0.1"
             - pypi:
-                package: "pandera[pyspark]==0.20.4"
+                package: "pandera==0.20.4" # Removed [pyspark] to protect Databricks' native Spark engine
           
       job_clusters:
         - job_cluster_key: "finops_optimized_cluster"
