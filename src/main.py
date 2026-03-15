@@ -1,13 +1,11 @@
 """
 Purpose: Master orchestrator for the AtlasLift Medallion Data Pipeline.
-Author: Nahasat Nibir
-Date: 2026-03-14
+Author: Lead Cloud Data Architect
+Date: 2026-03-15
 Dependencies: pyspark, config, pipelines
 """
 
 import logging
-import os
-import json
 from pyspark.sql import SparkSession
 
 from config.settings import Config, with_retries
@@ -18,21 +16,27 @@ from pipelines.gold_aggregation import build_gold
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-def seed_cloud_mock_data(landing_zone_path: str) -> None:
-    """Generates mock telemetry payloads on the cluster if the directory is empty."""
-    os.makedirs(landing_zone_path, exist_ok=True)
-    file_path = os.path.join(landing_zone_path, "telemetry_batch_1.json")
-    
-    if not os.path.exists(file_path):
-        logger.info(f"No raw data found. Seeding mock telemetry at {file_path}")
+def seed_mock_data(spark: SparkSession, path: str) -> None:
+    """
+    Seeds the landing zone with mock JSON data if it is empty.
+    This ensures we have physical data in Azure for Power BI to query.
+    """
+    try:
+        # Check if data already exists to prevent duplicate seeding
+        spark.read.format("json").load(path)
+        logger.info("Mock telemetry data already exists in landing zone.")
+    except Exception:
+        logger.info("Landing zone empty. Generating mock telemetry data...")
         mock_data = [
-            {"message_id": "msg_001", "crane_id": "CRN-FI-01", "timestamp": "2026-03-14T10:00:00Z", "hoist_load_kg": 25000.5, "vibration_mm_s": 12.4, "crane_model": "SMARTON", "operational_region": "Nordics"},
-            {"message_id": "msg_002", "crane_id": "CRN-FI-01", "timestamp": "2026-03-14T10:05:00Z", "hoist_load_kg": 45000.0, "vibration_mm_s": 45.1, "crane_model": "SMARTON", "operational_region": "Nordics"},
-            {"message_id": "msg_003", "crane_id": "CRN-DE-05", "timestamp": "2026-03-14T10:00:00Z", "hoist_load_kg": 10500.0, "vibration_mm_s": 8.2, "crane_model": "CXT", "operational_region": "Central Europe"}
+            {"message_id": "msg_001", "crane_id": "CRN-FI-01", "timestamp": "2026-03-15T10:00:00Z", "hoist_load_kg": 25000.5, "vibration_mm_s": 12.4, "crane_model": "SMARTON", "operational_region": "Nordics"},
+            {"message_id": "msg_002", "crane_id": "CRN-FI-01", "timestamp": "2026-03-15T10:05:00Z", "hoist_load_kg": 45000.0, "vibration_mm_s": 45.1, "crane_model": "SMARTON", "operational_region": "Nordics"},
+            {"message_id": "msg_003", "crane_id": "CRN-DE-05", "timestamp": "2026-03-15T10:00:00Z", "hoist_load_kg": 10500.0, "vibration_mm_s": 8.2, "crane_model": "CXT", "operational_region": "Central Europe"},
+            {"message_id": "msg_004", "crane_id": "CRN-FI-01", "timestamp": "2026-03-15T10:10:00Z", "hoist_load_kg": 85000.0, "vibration_mm_s": 95.0, "crane_model": "SMARTON", "operational_region": "Nordics"},
+            {"message_id": "msg_005", "crane_id": "CRN-UK-02", "timestamp": "2026-03-15T10:15:00Z", "hoist_load_kg": 5000.0, "vibration_mm_s": -5.0, "crane_model": "CXT", "operational_region": "UK"}
         ]
-        with open(file_path, "w") as f:
-            for record in mock_data:
-                f.write(json.dumps(record) + "\n")
+        df = spark.createDataFrame(mock_data)
+        df.write.format("json").mode("overwrite").save(path)
+        logger.info("Mock data successfully written to landing zone.")
 
 @with_retries(max_retries=Config.MAX_RETRIES, delay=Config.RETRY_DELAY_SEC)
 def run_pipeline(spark: SparkSession, raw_data_path: str) -> None:
@@ -52,20 +56,16 @@ def run_pipeline(spark: SparkSession, raw_data_path: str) -> None:
 
 if __name__ == "__main__":
     try:
-        spark = SparkSession.builder \
-            .appName("AtlasLift-Medallion-Pipeline") \
-            .getOrCreate()
-        
+        spark = SparkSession.builder.appName("AtlasLift-Medallion-Pipeline").getOrCreate()
         RAW_DATA_SOURCE = f"{Config.LAKEHOUSE_BASE_PATH}/landing_zone"
         
-        # Self-healing: Ensure data exists before pipeline runs
-        seed_cloud_mock_data(RAW_DATA_SOURCE)
-        
+        # 1. Ensure we have data
+        seed_mock_data(spark, RAW_DATA_SOURCE)
+        # 2. Run the Medallion architecture
         run_pipeline(spark, RAW_DATA_SOURCE)
         
     except Exception as e:
-        logger.critical(f"Pipeline failed critically and could not recover: {str(e)}")
+        logger.critical(f"Pipeline failed critically: {str(e)}")
         raise
-    finally:
-        if 'spark' in locals():
-            spark.stop()
+    
+    # CRITICAL FIX: Removed the spark.stop() block. Databricks manages the lifecycle.
