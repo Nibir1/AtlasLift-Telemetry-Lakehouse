@@ -1,8 +1,8 @@
 # Purpose: Cross-Platform Workflow automation for AtlasLift-Telemetry-Lakehouse
-# Author: Lead Cloud Data Architect
-# Date: 2026-03-15
+# Author: Nahasat Nibir
+# Date: 2026-03-16
 
-.PHONY: help clean lock install test-harness infra-up infra-down generate-env bundle-validate run-pipeline
+.PHONY: help clean lock install test-harness infra-up generate-env bundle-validate run-pipeline bundle-destroy infra-down
 
 RESOURCE_GROUP := atlaslift-rg
 LOCATION := swedencentral
@@ -11,22 +11,26 @@ WORKSPACE_NAME := atlaslift-dbw-dev
 help:
 	@echo "AtlasLift Telemetry Lakehouse - Command Interface"
 	@echo "-------------------------------------------------"
-	@echo "make clean        : Remove corrupted lock files and .venv"
-	@echo "make lock         : Generate native TOML uv.lock using pyproject.toml"
-	@echo "make install      : Create .venv and install dependencies (including dev tools)"
-	@echo "make test-harness : Verify the local PySpark Delta testing harness"
+	@echo "Local Development:"
+	@echo "  make clean           : Remove corrupted lock files and .venv"
+	@echo "  make lock            : Generate native TOML uv.lock using pyproject.toml"
+	@echo "  make install         : Create .venv and install dependencies"
+	@echo "  make test-harness    : Verify the local PySpark Delta testing harness"
 	@echo ""
-	@echo "Infrastructure:"
-	@echo "make infra-up         : Deploy Azure + Databricks workspace"
-	@echo "make infra-down       : Destroy Azure resources"
-	@echo "make generate-env     : Generate cross-platform .env file via Python"
-	@echo "make bundle-validate  : Validate Databricks bundle via Python dotenv wrapper"
-	@echo "make run-pipeline     : Execute Medallion Pipeline via Python dotenv wrapper"
+	@echo "Cloud Infrastructure (Azure):"
+	@echo "  make infra-up        : Deploy Azure Resource Group + Databricks workspace via Bicep"
+	@echo "  make generate-env    : Generate cross-platform .env file via Python"
+	@echo "  make infra-down      : 🚨 Destroy all Azure resources to save student credits"
+	@echo ""
+	@echo "Databricks CI/CD & Execution:"
+	@echo "  make bundle-validate : Validate Databricks bundle against live workspace"
+	@echo "  make run-pipeline    : Execute Medallion Pipeline on Azure Databricks"
+	@echo "  make bundle-destroy  : 🚨 Clean up Databricks Asset Bundle artifacts (jobs/clusters)"
 
 clean:
 	@echo "Cleaning up environment files..."
 	uv cache clean
-	-rm -rf .venv uv.lock
+	-rm -rf .venv uv.lock .env
 
 lock:
 	@echo "Generating native TOML uv.lock..."
@@ -44,12 +48,7 @@ infra-up:
 	@echo "Deploying Azure Resource Group and Databricks Workspace via Bicep..."
 	az group create --name $(RESOURCE_GROUP) --location $(LOCATION) -o none
 	az deployment group create --resource-group $(RESOURCE_GROUP) --template-file infra/workspace.bicep --parameters workspaceName=$(WORKSPACE_NAME) -o table
-	@echo "Cloud infrastructure deployed successfully."
-
-infra-down:
-	@echo "Destroying all Azure resources to save credits..."
-	az group delete --name $(RESOURCE_GROUP) --yes --no-wait
-	@echo "Deletion initiated. This happens asynchronously in the background."
+	@echo "✅ Cloud infrastructure deployed successfully."
 
 generate-env:
 	@echo "Generating cross-platform .env file..."
@@ -62,3 +61,12 @@ bundle-validate:
 run-pipeline:
 	@echo "Executing Medallion Pipeline on Azure Databricks..."
 	uv run python -c "import subprocess, sys; from dotenv import load_dotenv; load_dotenv(); sys.exit(subprocess.run('databricks bundle run atlaslift_medallion_pipeline -t prod', shell=True).returncode)"
+
+bundle-destroy:
+	@echo "🚨 Destroying Databricks Asset Bundle deployment to clean up workspace..."
+	uv run python -c "import subprocess, sys; from dotenv import load_dotenv; load_dotenv(); sys.exit(subprocess.run('databricks bundle destroy -t prod', shell=True).returncode)"
+
+infra-down:
+	@echo "🚨 Destroying all Azure resources to save credits..."
+	az group delete --name $(RESOURCE_GROUP) --yes --no-wait
+	@echo "✅ Deletion initiated. This happens asynchronously in the background. Check Azure Portal to confirm."
